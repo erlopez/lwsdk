@@ -6,3 +6,6 @@ make
 
 cd ..
 rm -rf build
+
+which doxygen && doxygen
+
