@@ -21,6 +21,11 @@ sudo apt install libwebsockets
 
 
 ```
+           
+# GitHub Project
+
+The source files can be found at https://github.com/erlopez/lwsdk
+
 
 # My Portfolio
      
