@@ -126,40 +126,7 @@ namespace lwsdk
     #define fatal(fmt, args...) {fprintf( stderr,  FG9 "%s:%d:%s() "  fmt  NOC  "\n", __MODULE_NAME__ , __LINE__, __func__, ## args); exit(-1);}
 
 #endif
-
-
-// vardic formatters example
-//template<class... Args>
-//std::string format( const char *fmt, const Args &... args )
-//{
-//    int needed = snprintf( nullptr, 0, fmt, args... );
-//    std::string s( needed + 1, '\0' );
-//    snprintf( s.data(), s.size(), fmt, args... );
-//    s.pop_back(); // remove the written '\0'
-//    return s;
-//}
-//
-//void test()
-//{
-//    std::string s = format( "There are %d piano tuners in %s", tuners,
-//                            where );
-//    assert( s == "There are 225 piano tuners in Chicago" );
-//}
-
-//std::string better_format( const char *fmt, ... )
-//{
-//    va_list ap;
-//    va_start( ap, fmt );
-//    int needed = vsnprintf( nullptr, 0, fmt, ap );
-//    va_end( ap );
-//    std::string s( needed + 1, '\0' );
-//    va_start( ap, fmt );
-//    vsnprintf( s.data(), s.size(), fmt, ap );
-//    va_end( ap );
-//    s.pop_back(); // remove the written '\0'
-//    return s;
-//}
-
+ 
 
 } // namespace lwsdk
 
