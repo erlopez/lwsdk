@@ -26,7 +26,7 @@
 #include <thread>
 #include <optional>
 
-#include "../headers/Webserver.h"
+#include "Webserver.h"
 #include "Files.h"
 #include "Exceptions.h"
 #include "Utils.h"
