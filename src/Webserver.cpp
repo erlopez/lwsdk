@@ -107,6 +107,14 @@ namespace lwsdk::Webserver
         { nullptr, nullptr, nullptr /* terminator */}
     };
 
+    // Extra mime types
+    static const struct lws_protocol_vhost_options pvo_mime_sh  = { NULL,          NULL, ".sh",  "application/x-sh" };
+    static const struct lws_protocol_vhost_options pvo_mime_csv = { &pvo_mime_sh,  NULL, ".csv", "text/csv" };
+    static const struct lws_protocol_vhost_options pvo_mime_gz  = { &pvo_mime_csv, NULL, ".gz",  "application/gzip" };
+    static const struct lws_protocol_vhost_options pvo_mime_tgz = { &pvo_mime_gz,  NULL, ".tgz", "application/gzip" };
+    static const struct lws_protocol_vhost_options pvo_mime_zip = { &pvo_mime_tgz, NULL, ".zip", "application/zip" };
+    static const struct lws_protocol_vhost_options pvo_mime_pdf = { &pvo_mime_zip, NULL, ".pdf", "application/pdf" };
+
     static struct lws_http_mount mount = {
          .mount_next =            nullptr,       // linked-list "next"
          .mountpoint =            "/",           // mount point URL
@@ -114,7 +122,7 @@ namespace lwsdk::Webserver
          .def =                   "index.html",  // default filename
          .protocol =              nullptr,
          .cgienv =                nullptr,
-         .extra_mimetypes =       nullptr,
+         .extra_mimetypes =       &pvo_mime_pdf,
          .interpret =             nullptr,
          .cgi_timeout =           0,
          .cache_max_age =         0,
