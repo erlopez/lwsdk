@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -27,6 +28,7 @@
 #include <thread>
 #include <functional>
 #include <atomic>
+#include <condition_variable>
 
 #include <termios.h>  // for baud rate constants B115200, B921600, etc..
 
@@ -79,8 +81,8 @@ namespace lwsdk
         std::atomic_bool  keepWorking{false};
         std::atomic_bool  isConnected{false};
         std::thread *portReaderThread{nullptr};
-        //std::mutex mtx;
-        //std::stringstream inputStream;
+        std::condition_variable idleCondVar;
+        
         void readerThread();
         
     public:
@@ -179,14 +181,15 @@ namespace lwsdk
          * @param text Text to send.
          * @return The number of bytes sent. Returns -1 on error.
          */
-        uint32_t write( const std::string &text );
+        int write( const std::string &text );
 
         /**
          * Writes raw data to the serial port.
          * @param data Data to send out.
+         * @param len  Length of the data in bytes.
          * @return The number of bytes sent. Returns -1 on error.
          */
-        uint32_t write( const uint8_t *data, uint32_t len );
+        int write( const uint8_t *data, int len );
     };
 
 }

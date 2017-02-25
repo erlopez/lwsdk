@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -126,7 +127,7 @@ namespace lwsdk
     #define fatal(fmt, args...) {fprintf( stderr,  FG9 "%s:%d:%s() "  fmt  NOC  "\n", __MODULE_NAME__ , __LINE__, __func__, ## args); exit(-1);}
 
 #endif
- 
+
 
 } // namespace lwsdk
 

@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -86,130 +87,134 @@ namespace lwsdk
 
     void NetlinkUEvent::readerThread()
     {
-        struct sockaddr_nl srcAddr{0};
-        int socketfd;
-        int ret;
-
-        // 1. Configure netlink socket to subscribe to kernel uevent stream
-        srcAddr.nl_family = AF_NETLINK;
-        srcAddr.nl_pid = getpid();
-        srcAddr.nl_groups = -1;
-    
-        socketfd = socket( AF_NETLINK, (SOCK_DGRAM | SOCK_NONBLOCK), NETLINK_KOBJECT_UEVENT );
-        if ( socketfd < 0 )
-        {
-            loge( "Netlink reader thread: failed to create netlink socket, could not start." );
-            return;
-        }
-    
-        ret = bind( socketfd, (struct sockaddr *) &srcAddr, sizeof( srcAddr ));
-        if ( ret )
-        {
-            loge( "Netlink reader thread: failed to bind netlink socket, could not start." );
-            close( socketfd );
-            return;
-        } 
-
-
-        // 2. Configure epoll on the socket to allow reads with timeouts
-        #define MAX_EPOLL_EVENTS 1
-        struct epoll_event events[MAX_EPOLL_EVENTS];
-
-        // Create epoll instance
-        int epollfd = epoll_create(1);  // tip: "1" size argument is ignored, but must be > 0
-        if ( epollfd < 0 )
-        {
-            loge( "Netlink reader thread: failed to create epoll instance, could not start." );
-            close( socketfd );
-            return;
-        }
-
-        // Add socketfd to the watch list
-        struct epoll_event event{0};
-        event.events = EPOLLIN;         // Can append "|EPOLLOUT" for write events as well
-        event.data.fd = socketfd;
-
-        ret = epoll_ctl( epollfd, EPOLL_CTL_ADD, socketfd, &event);
-        if ( ret < 0 )
-        {
-            loge( "Netlink reader thread: failed to add socket to epoll instance, could not start." );
-            close( epollfd );
-            close( socketfd );
-            return;
-        }
-
-        // 3. Loop to wait for incoming data
-        logi( "Netlink reader thread started ..." );
-
         while ( keepWorking )
-        { 
-            #if LOGGER_ENABLED
-            printf( "o" );
-            fflush( stdout );
-            #endif
+        {
+            sockaddr_nl srcAddr{0};
+            int socketfd;
+            int ret;
 
-            // Wait for socket data available
-            int nReady = epoll_wait( epollfd, events, MAX_EPOLL_EVENTS, 500 /*timeout ms*/ );
+            // 1. Configure netlink socket to subscribe to kernel uevent stream
+            srcAddr.nl_family = AF_NETLINK;
+            srcAddr.nl_pid = (gettid() << 16) + getpid();  // Port ID
+            srcAddr.nl_groups = -1;
 
-            if ( nReady < 0 )
+            socketfd = socket( AF_NETLINK, (SOCK_DGRAM | SOCK_NONBLOCK), NETLINK_KOBJECT_UEVENT );
+            if ( socketfd < 0 )
             {
-                loge( "Netlink reader thread: epoll_wait() error on netlink socket (errno=%i %s)",
-                      errno, strerror( errno ));
-                break;
-            }
-            else if ( nReady == 0 || !(events[0].events & EPOLLIN) )
-            {
-                continue;
+                loge( "Netlink reader thread: failed to create netlink socket, could not start." );
+                return;
             }
 
-            // Read socket data
-            long len = recv( socketfd, buf, sizeof( buf ), 0 );
-            if ( len < 0 && errno != EAGAIN )
+            ret = bind( socketfd, (sockaddr *) &srcAddr, sizeof( srcAddr ));
+            if ( ret )
             {
-                logw( "Netlink reader thread: read() error on netlink socket (errno=%i %s)",
-                      errno, strerror( errno ));
-                this_thread::sleep_for( chrono::seconds( 1 ));
+                loge( "Netlink reader thread: failed to bind netlink socket, could not start." );
+                close( socketfd );
+                return;
             }
-            else if ( len > 0 )
+
+
+            // 2. Configure epoll on the socket to allow reads with timeouts
+            #define MAX_EPOLL_EVENTS 1
+            epoll_event events[MAX_EPOLL_EVENTS];
+
+            // Create epoll instance
+            int epollfd = epoll_create( 1 );  // tip: "1" size argument is ignored, but must be > 0
+            if ( epollfd < 0 )
             {
-                logY( "------------------------ UMessage len=%ld ----------------------", len );
+                loge( "Netlink reader thread: failed to create epoll instance, could not start." );
+                close( socketfd );
+                return;
+            }
 
-                // Ignore libudev messages
-                if ( strcmp( "libudev", buf ) == 0 )
-                    continue;
+            // Add socketfd to the watch list
+            epoll_event event{0};
+            event.events = EPOLLIN;         // Can append "|EPOLLOUT" for write events as well
+            event.data.fd = socketfd;
 
+            ret = epoll_ctl( epollfd, EPOLL_CTL_ADD, socketfd, &event );
+            if ( ret < 0 )
+            {
+                loge( "Netlink reader thread: failed to add socket to epoll instance, could not start." );
+                close( epollfd );
+                close( socketfd );
+                return;
+            }
 
+            // 3. Loop to wait for incoming data
+            logi( "Netlink reader thread started ..." );
+
+            while ( keepWorking )
+            {
                 #if LOGGER_ENABLED
-                Utils::memdump( buf, len );
+                printf( "o" );
+                fflush( stdout );
                 #endif
 
-                // Convert all null-terminatord in message to LF \n
-                for ( int i = 0; i < len; i++ )
-                    if ( buf[i] == 0 )
-                        buf[i] = '\n';
+                // Wait for socket data available
+                int nReady = epoll_wait( epollfd, events, MAX_EPOLL_EVENTS, 500 /*timeout ms*/ );
 
-                // Call user defined callback
-                try
+                if ( nReady < 0 )
                 {
-                    uEventCallback( UEvent( string( buf, len )));
+                    // This usually happens after PC wake from sleep
+                    loge( "Netlink reader thread: epoll_wait() error on netlink socket (errno=%i %s); attempting to restart thread ...",
+                          errno, strerror( errno ));
+                    break;
                 }
-                catch ( const std::exception &e )
+                else if ( nReady == 0 || !(events[0].events & EPOLLIN))
                 {
-                    loge( "User's uEventCallback() finished with errors: %s", e.what());
+                    continue;
                 }
 
-            }
+                // Read socket data
+                long len = recv( socketfd, buf, sizeof( buf ), 0 );
+                if ( len < 0 && errno != EAGAIN )
+                {
+                    logw( "Netlink reader thread: read() error on netlink socket (errno=%i %s)",
+                          errno, strerror( errno ));
+                    this_thread::sleep_for( 1s );
+                }
+                else if ( len > 0 )
+                {
+                    logY( "------------------------ UMessage len=%ld ----------------------", len );
+
+                    // Ignore libudev messages
+                    if ( strcmp( "libudev", buf ) == 0 )
+                        continue;
 
 
-        }   //loop
+                    #if LOGGER_ENABLED
+                    Utils::memdump( buf, len );
+                    #endif
 
-           
-        // Close socket
-        close( epollfd );
-        close( socketfd );
-        
-        
-        logi( "Netlink reader thread ended." );
+                    // Convert all null-terminatord in message to LF \n
+                    for ( int i = 0; i < len; i++ )
+                        if ( buf[i] == 0 )
+                            buf[i] = '\n';
+
+                    // Call user defined callback
+                    try
+                    {
+                        uEventCallback( UEvent( string( buf, len )));
+                    }
+                    catch ( const std::exception &e )
+                    {
+                        loge( "User's uEventCallback() finished with errors: %s", e.what());
+                    }
+
+                }
+
+
+            }   //loop
+
+
+            // Close socket
+            close( epollfd );
+            close( socketfd );
+
+            logi( "Netlink reader thread ended." );
+
+        }  /*outer while*/
 
     }
 

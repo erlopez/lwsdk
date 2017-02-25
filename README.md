@@ -1,16 +1,15 @@
 # Lopezworks SDK for C/C++ (lwsdk)
 
-Contains an assorted collection of helper utilities to easy the development of client/server
+Contains an assorted collection of helper utilities to ease the development of client/server
 C/C++ application in Linux.
 
-The library requires a C++17 or higher compiler.
+The library requires a C++17 or higher compiler. 
                                
 ## Package Dependencies
 
-* Development:
+* Dependencies:
 ```
-sudo apt install libwebsockets-dev  
-
+sudo apt install libwebsockets-dev libcurl4-openssl-dev libssh-dev 
 
 ```
            

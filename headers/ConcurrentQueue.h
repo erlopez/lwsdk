@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -29,6 +30,7 @@
 #include <optional>
 #include <utility>
 #include "Exceptions.h"
+#include "Result.h"
 
 namespace lwsdk
 {
@@ -63,7 +65,7 @@ namespace lwsdk
          * Wake all threads waiting on the queue. All sleeping threads waiting on the queue
          * will wake up via an InterruptedException. This functionality is typically used
          * to notify threads to check for application changing conditions and determine
-         * when to exit to allow the application to terminate cleanly.
+         * when to exit to allow the application to dispose cleanly.
          *
          * The queue remains in interrupted state until offer() is called again.
          */
@@ -103,17 +105,17 @@ namespace lwsdk
          * Example for processing returned optional value:
          *
          *        auto var = take(100);
-         *        if ( var.has_value() )
+         *        if ( var.isValid() )
          *           doSomething( var.value() );
          *
          * @param timeoutMsec Maximum number of milliseconds to wait for new data. Set this
          *                    value to 0 for non-blocking behaviour.
          * @param remove      True removes the item, false leaves it in the queue.
          *
-         * @return Item in the front of the queue (oldest). An empty value if the operation
-         *         was interrupted of timed out.
+         * @return Item in the front of the queue (oldest). An invalid value if the operation
+         *         was interrupted or timed out.
          */
-        std::optional<T> take(uint32_t timeoutMsec, bool remove = true );
+        Result<T>  take(uint32_t timeoutMsec, bool remove = true );
 
         /**
          * Returns the next item in the queue. If the queue is empty, the thread blocks

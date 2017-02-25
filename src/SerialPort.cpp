@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -67,6 +68,7 @@ namespace lwsdk
         if ( portReaderThread != nullptr )
         {
             keepWorking = false;        // signal reader thread to exit
+            idleCondVar.notify_one();   // wake thread if sleeping
             portReaderThread->join();   // Wait thread exit
             delete portReaderThread;    // clean up
             portReaderThread = nullptr;
@@ -146,16 +148,16 @@ namespace lwsdk
     }
 
 
-    uint32_t SerialPort::write( const std::string& text )
+    int SerialPort::write( const std::string& text )
     {
-        return write( (uint8_t*)text.data(), (uint32_t) text.length() );
+        return write( (uint8_t*)text.data(), (int) text.length() );
     }
 
 
-    uint32_t SerialPort::write( const uint8_t *data, uint32_t len  )
+    int SerialPort::write( const uint8_t *data, int len  )
     {
-        uint32_t count = 0;
-        uint32_t bytesWritten;
+        int count = 0;
+        int bytesWritten;
 
 
         #if LOGGER_ENABLED
@@ -169,12 +171,12 @@ namespace lwsdk
             if ( interCharacterWriteDelay > 0 )
             {
                 // insert inter-character delay, to not overwhelm device
-                bytesWritten = ::write( portfd, &data[count], 1 );
+                bytesWritten = (int) ::write( portfd, &data[count], 1 );
                 usleep( interCharacterWriteDelay );
             }
             else
             {
-                bytesWritten = ::write( portfd, &data[count], len - count );
+                bytesWritten = (int) ::write( portfd, &data[count], len - count );
             }
 
             count += bytesWritten;
@@ -195,14 +197,13 @@ namespace lwsdk
     
     bool SerialPort::close()
     {
-        int ret = 0;
         clearErrors();
 
 
         // Close port
         if ( portfd > 0 )
         {
-            ret = ::close( portfd );
+            int ret = ::close( portfd );
             if ( ret != 0 )
             {
                 snprintf( lastError, sizeof( lastError ), "Unable to close %s (errno=%i %s)",
@@ -341,6 +342,7 @@ namespace lwsdk
 
         // Tell reader thread port is ready
         isConnected = true;
+        idleCondVar.notify_one();
 
         logi( "Opened serial port %s", portName.c_str());
 
@@ -378,10 +380,12 @@ namespace lwsdk
                        isConnected ? "ACTIVE" : "STANDBY" );
             }
 
-            // If not connected, do short sleeps while standing by for port getting open
+            // If not connected, do short sleeps while waiting for port getting open
             if ( !isConnected )
             {
-                std::this_thread::sleep_for( chrono::milliseconds(500) );
+                mutex mtx;
+                unique_lock lock( mtx );
+                idleCondVar.wait_for( lock, 10s, [this]() { return !this->keepWorking || this->isConnected; } );
                 continue;
             }
 

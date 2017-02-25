@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -24,9 +25,20 @@
 
 
 #include <string>
+#include <strings.h>
 
 namespace lwsdk::Utils
 {
+    // Comparator for building case-insensitive maps, for example
+    //     std::map<std::string, std::string, lwsdk::Utils::CaseInsensitiveComparator> myCiMap{};
+    struct CaseInsensitiveComparator
+    {
+        bool operator()(const std::string& a, const std::string& b) const noexcept
+        {
+            return ::strcasecmp( a.c_str(), b.c_str()) < 0;
+        }
+    };
+
     /**
      * Returns the computer's local time zone string formatted as: 'MDT'
      */
@@ -137,6 +149,19 @@ namespace lwsdk::Utils
      */
     void memdump( const void *address, uint32_t size );
 
+    /**
+     * Return the username for the given system user ID.
+     * @param userId  A system user ID
+     * @return The username if found, "" if there is an error.
+     */
+    std::string getUserForId( long userId );
+
+    /**
+     * Return the group name for the given system group ID.
+     * @param userId  A system group ID
+     * @return The group name if found, "" if there is an error.
+     */
+    std::string getGroupForId( long groupId );
 }
 
 #endif /*UTILS_H*/

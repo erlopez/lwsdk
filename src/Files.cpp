@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -21,12 +22,16 @@
  ********************************************************************************/
 #include "Files.h"
 #include "Exceptions.h"
+#include "Utils.h"
+#include "Logger.h"
 
 #include <filesystem>
 #include <chrono>
+#include <sys/stat.h>
 
 namespace fs = std::filesystem;
 using namespace std;
+using namespace lwsdk;
 
 namespace lwsdk::Files
 {
@@ -171,7 +176,10 @@ namespace lwsdk::Files
 
             while ( !in.eof() )
             {
-                in.read( buf.get(), BUF_SZ );
+                if ( in.fail() || out.fail() )             // in network streams, 'fail' without 'eof' is possible, prevent infinite loop
+                    throw IOException( "IO error" );
+
+                in.read( buf.get(), BUF_SZ );              // tip:  last read will set 'eof' and 'fail'
                 out.write( buf.get(), in.gcount() );
             }
 
@@ -181,6 +189,36 @@ namespace lwsdk::Files
             throw IOException( string("streamCopy() - IOException, ") + e.what() );
         }
 
+    }
+
+
+    FileInfo getFileInfo( const std::string& pathname )
+    {
+        FileInfo fi;
+
+        struct stat st{};
+
+        // exists?
+        if ( stat( pathname.c_str(), &st ) < 0 )
+        {
+            fi.errorNo = errno;
+            loge("Error accessing '%s' - %s", pathname.c_str(), strerror(fi.errorNo) );
+            return fi;
+        }
+
+        fi.exists = true;
+        fi.isFile = S_ISREG( st.st_mode );
+        fi.isDir = S_ISDIR( st.st_mode );
+        fi.mode = st.st_mode & 0777;
+        fi.uid = st.st_uid;
+        fi.gid = st.st_gid;
+        fi.size = st.st_size;
+        fi.lastModified = st.st_mtime;
+        fi.username = Utils::getUserForId( st.st_uid );
+        fi.group = Utils::getGroupForId( st.st_gid );
+
+
+        return fi;
     }
 
 

@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -25,10 +26,15 @@
 #include <cctype>
 #include <cstdio>
 #include <time.h>    // for localtime_r() thread safe
-#include <unistd.h>
 #include <chrono>
 #include <iomanip>
 #include <string>
+#include <pwd.h>
+#include <mutex>
+#include <grp.h>
+
+#define LOGGER_ENABLED 0   // turn off verbose logging
+#include "Logger.h"
 
 
 using namespace std;
@@ -179,40 +185,93 @@ namespace lwsdk::Utils
         uint32_t i, line, linecount = (size + ((uint64_t) address - (uint64_t) mem)) / 16 + 1;
 
 
-        printf( "\n  MEM DUMP AT %p:\n  ----------------------------------------------------------------------------------------\n", address );
+        fprintf( stderr, "\n  MEM DUMP AT %p:\n  ----------------------------------------------------------------------------------------\n", address );
 
         for ( line = 0; line < linecount; line++ )
         {
-            printf( "  [%04x] %08lx: ", (uint32_t) (line * 16), ((uint64_t) mem));
+            fprintf( stderr, "  [%04x] %08lx: ", (uint32_t) (line * 16), ((uint64_t) mem));
 
             // hex data
             for ( i = 0; i < 16; i++ )
             {
                 if ((&mem[i] >= (uint8_t *) address) && (&mem[i] < (uint8_t *) address + size))
-                    printf( "%02X ", mem[i] );
+                    fprintf( stderr, "%02X ", mem[i] );
                 else
-                    printf( ".. " );
+                    fprintf( stderr, ".. " );
 
                 if ( i == 7 )
-                    printf( "- " );
+                    fprintf( stderr, "- " );
             }
 
-            printf( " " );
+            fprintf( stderr, " " );
 
             // ascii data
             for ( i = 0; i < 16; i++ )
             {
                 if ((&mem[i] >= (uint8_t *) address) && (&mem[i] < (uint8_t *) address + size))
-                    printf( "%c", isprint( mem[i] ) ? mem[i] : '.' );
+                    fprintf( stderr, "%c", isprint( mem[i] ) ? mem[i] : '.' );
                 else
-                    printf( "." );
+                    fprintf( stderr, "." );
             }
 
             mem += 16;
-            printf( "\n" );
+            fprintf( stderr, "\n" );
         }
 
-        printf( "  ----------------------------------------------------------------------------------------\n\n" );
+        fprintf( stderr, "  ----------------------------------------------------------------------------------------\n\n" );
+    }
+
+
+    std::string getUserForId( long userId )
+    {
+        static char buf[4096];                   // static buffer shared among all callers, _SC_GETPW_R_SIZE_MAX = ~1K
+        static std::mutex mtx;                   // static mutex to control access to this function
+        std::lock_guard<std::mutex> lock(mtx);   // Ensure beyond this point, only one thread can continue
+
+        size_t bufsz = sizeof(buf);
+        struct passwd pwd{};
+        struct passwd *resultp;
+        string username;
+
+        // Attempt to get password data
+        //  - pwd holds returning password structure
+        //  - buf holds additional strings pointed by pwd fields
+        // See https://man7.org/linux/man-pages/man3/getpwuid.3p.html
+        int ret = getpwuid_r( userId, &pwd, buf, bufsz, &resultp );
+        if ( ret != 0 )
+            loge( "Unable to get username for uid=%ld - %s", userId, strerror(ret) );
+        else if ( resultp != &pwd )
+            logw( "Unable to get username for uid=%ld - not found", userId );
+        else
+            username = pwd.pw_name;
+
+        return username;
+    }
+
+    std::string getGroupForId( long groupId )
+    {
+        static char buf[4096];                   // static buffer shared among all callers, _SC_GETPW_R_SIZE_MAX = ~1K
+        static std::mutex mtx;                   // static mutex to control access to this function
+        std::lock_guard<std::mutex> lock(mtx);   // Ensure beyond this point, only one thread can continue
+
+        size_t bufsz = sizeof(buf);
+        struct group grp{};
+        struct group *resultp;
+        string groupname;
+
+        // Attempt to get group data
+        //  - grp holds returning password structure
+        //  - buf holds additional strings pointed by grp fields
+        // See https://man7.org/linux/man-pages/man3/getpwuid.3p.html
+        int ret = getgrgid_r( groupId, &grp, buf, bufsz, &resultp );
+        if ( ret != 0 )
+            loge( "Unable to get group name for gid=%ld - %s", groupId, strerror(ret) );
+        else if ( resultp != &grp )
+            logw( "Unable to get group name for gid=%ld - not found", groupId );
+        else
+            groupname = grp.gr_name;
+
+        return groupname;
     }
 
 } //ns

@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -230,9 +231,9 @@ namespace lwsdk::Webserver
         return res;
     }
 
-    std::optional<WSMessage> receiveMessage( uint32_t timeoutMsec )
+    Result<WSMessage> receiveMessage( uint32_t timeoutMsec )
     {
-        return userCallback ? nullopt : incomingMessages.take( timeoutMsec );
+        return userCallback ? Result<WSMessage>() : incomingMessages.take( timeoutMsec );
     }
 
     int getClientCount()

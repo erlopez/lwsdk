@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -65,7 +66,7 @@ namespace lwsdk
 
     /**
      * User callback to receive kernel hot-plug events.
-     * @param uevent  Port name the data originates from
+     * @param uevent  Event data
      */
     typedef std::function<void ( const UEvent &uevent )> UEventCallback_t;
 
@@ -88,11 +89,16 @@ namespace lwsdk
          * Establishes a connection to the kernel's hot-plug event stream
          * and forwards the event data to the given user-defined callback.
          *
-         * @param uEventCallback
+         * @param uEventCallback User-defined function to receive event notifications
          */
         explicit NetlinkUEvent( const UEventCallback_t& uEventCallback );
 
         virtual ~NetlinkUEvent();
+
+        /**
+         * Returns true if the service is running, false otherwise.
+         */
+        bool isRunning() { return keepWorking; }
 
     };
 

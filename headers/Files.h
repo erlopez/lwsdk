@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -27,6 +28,31 @@
 
 namespace lwsdk::Files
 {
+    // Object returned by getFileInfo()
+    struct FileInfo {
+        bool exists {false};     // true if pathname exists
+        bool isFile {false};     // true if pathname is a regular file
+        bool isDir {false};      // true if pathname is a directory
+        int  mode {0};           // like chmod, decode using macros: S_IRUSR, S_IWUSR, S_IXUSR;  S_IRGRP, S_IWGRP, S_IXGRP;  S_IROTH, S_IWOTH, S_IXOTH,
+        long uid  {-1};          // id for the file's user
+        long gid  {-1};          // id for the file's group
+        long size {-1};          // file size
+        long lastModified {-1};  // epoch seconds
+        int  errorNo{0};         // errno for the IO operation, 0=OK
+        std::string username;    // obtained on best effort, blank if it cannot be obtained
+        std::string group;       // obtained on best effort, blank if it cannot be obtained
+
+        inline std::string toString() const
+        {
+            char buf[256];
+            snprintf( buf, sizeof(buf), "FileStatus{ exists:%s, isFile:%s, isDir:%s, uid:%ld, gid:%ld, "
+                                        "mode:'%04o', size:%ld, lastModified:%ld, username:'%s', group:'%s', errorNo:%d }",
+                                        exists ? "true" : "false", isFile ? "true" : "false", isDir ? "true" : "false",
+                                        uid, gid, mode, size, lastModified, username.c_str(), group.c_str(), errorNo );
+            return buf;
+        }
+    };
+
     // mkpath() - Compiler rule to check all vardic template arguments are string type
     // see https://www.fluentcpp.com/2019/01/25/variadic-number-function-parameters-type/
     template<typename... Ts>  using ALLSTRINGS = typename
@@ -177,6 +203,16 @@ namespace lwsdk::Files
      */
     void streamCopy( std::istream& in, std::ostream& out );
 
+    /**
+     * Retrieve information about a file or directory. Links
+     * are followed to the target file or directory.
+     * @param pathname  Path to file, directory, or link.
+     * @return  FileInfo structure. The information is valid only
+     *          if FileInfo.errorNo == 0;
+     */
+    FileInfo getFileInfo( const std::string& pathname );
+
+    
 } // ns
 
 

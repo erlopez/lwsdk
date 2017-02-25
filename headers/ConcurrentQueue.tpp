@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -79,11 +80,11 @@ template <typename T> T ConcurrentQueue<T>::take( bool remove )
 }
 
 
-template<typename T> std::optional<T> ConcurrentQueue<T>::take( uint32_t timeoutMsec, bool remove  )
+template<typename T> Result<T> ConcurrentQueue<T>::take( uint32_t timeoutMsec, bool remove  )
 {
     // Fail fast
     if ( timeoutMsec == 0 && items.empty() )
-        return std::nullopt;
+        return {};
 
     std::unique_lock<std::mutex> ulock(mtx);
 
@@ -95,7 +96,7 @@ template<typename T> std::optional<T> ConcurrentQueue<T>::take( uint32_t timeout
 
     // Test conditions after waking up
     if ( timeout || interrupted )
-        return std::nullopt;
+        return {};
 
     // Pop value out of queue
     T val = items.front();
@@ -104,7 +105,7 @@ template<typename T> std::optional<T> ConcurrentQueue<T>::take( uint32_t timeout
 
     cv.notify_all();
 
-    return val;
+    return { true, val };
 }
 
 

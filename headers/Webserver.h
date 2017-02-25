@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 2015-2017 Edwin R. Lopez
  *  http://www.lopezworks.info
+ *  https://github.com/erlopez/lwsdk
  *
  *  This source code is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -24,6 +25,7 @@
 
 #include <string>
 #include <functional>
+#include "Result.h"
 
 namespace lwsdk::Webserver
 {
@@ -177,7 +179,7 @@ namespace lwsdk::Webserver
      * @return A new message if any is available, otherwise an empty value if the operation
      *         timed out.
      */
-    std::optional<WSMessage> receiveMessage( uint32_t timeoutMsec );
+    Result<WSMessage> receiveMessage( uint32_t timeoutMsec );
 
 
 } // namespace
